@@ -6,6 +6,9 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const Question = require("./models/question");
 
+// Import Helmet
+const helmet = require("helmet");
+
 // Import passport & Local strategy
 const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy
@@ -14,6 +17,11 @@ const session = require('express-session');
 
 const port = process.env.PORT || 3000;
 
+// Import CORS
+const cors = require("cors");
+app.use(cors({
+  origin: `http://localhost:${port}`
+}))
 //Database connection 
 mongoose.connect(`${process.env.database}`)
   .then(() => console.log('Connected to MongoDB...'))
@@ -48,9 +56,6 @@ passport.use(new LocalStrategy(
       if (!user) {
         return done(null, false, { message: "Incorrect username. " });
       }
-      console.log('user.password', user.password);
-      // console.log('Current use password', await bcrypt.hash(password, 10))
-      // console.log('Password Match: ', (!(user.password == password)));
       if (!bcrypt.compareSync(password, user.password)) {
         return done(null, false, { message: "Incorrect Password. " });
       }
@@ -79,15 +84,12 @@ passport.deserializeUser(async (id, done) => {
 // Middeleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }))
-
-app.use(flash())
-
-
+app.use(helmet());
 
 // User registion 
 app.post('/api/register', async (req, res, done) => {
   try {
-    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+    const hashedPassword = await bcrypt.hashSync(req.body.password, 10);
 
     User.findOne({ username: req.body.username }, (err, user) => {
       if (err) done(null, false, { message: err.message })
@@ -144,13 +146,13 @@ app.post('/api/logout', (req, res) => {
   res.send("Logged out");
 })
 
+// Check Authentication
 function isAuthenticated(req, res, done) {
   if (req.user) {
     return done();
   }
   return false;
 }
-
 
 app.listen(port, () => {
   console.log(`server running on port ${port}`);
